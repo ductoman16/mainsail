@@ -54,7 +54,7 @@ export const getters: GetterTree<FarmPrinterState, any> = {
 
                 return Math.round(percent * 100) + '% Printing'
             }
-
+//TODO: Get "isReprintable" from here somehow
             return state.data.print_stats.state.charAt(0).toUpperCase() + state.data.print_stats.state.slice(1)
         }
 

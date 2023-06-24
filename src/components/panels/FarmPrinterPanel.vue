@@ -42,7 +42,7 @@
         </template>
         <v-hover>
             <template #default="{ hover }">
-                <div>
+                <div data-my-div>
                     <v-img ref="imageDiv" :height="imageHeight" :src="printer_image" class="d-flex align-end">
                         <div
                             v-if="
@@ -80,6 +80,17 @@
                                 </v-col>
                             </v-row>
                         </v-card-title>
+                        <v-fade-transition>
+                            <v-overlay v-if="hover" absolute :z-index="4">
+                                <v-btn color="primary" @click="clickPrinter">
+                                    {{
+                                        printer.socket.isConnected
+                                            ? $t('Panels.FarmPrinterPanel.SwitchToPrinter')
+                                            : $t('Panels.FarmPrinterPanel.ReconnectToPrinter')
+                                    }}
+                                </v-btn>
+                            </v-overlay>
+                        </v-fade-transition>
                     </v-img>
                     <v-card-text v-if="printer_preview.length" class="px-0 py-2">
                         <v-container class="py-0">
@@ -94,21 +105,28 @@
                             </v-row>
                         </v-container>
                     </v-card-text>
-                    <v-fade-transition>
-                        <v-overlay v-if="hover" absolute :z-index="4">
-                            <v-btn color="primary" @click="clickPrinter">
-                                {{
-                                    printer.socket.isConnected
-                                        ? $t('Panels.FarmPrinterPanel.SwitchToPrinter')
-                                        : $t('Panels.FarmPrinterPanel.ReconnectToPrinter')
-                                }}
-                            </v-btn>
-                        </v-overlay>
-                    </v-fade-transition>
                 </div>
             </template>
         </v-hover>
+
         <resize-observer @notify="handleResize" />
+
+        <!-- Printer Actions -->
+        <v-container>
+            <v-col>
+                <v-row>
+                    <v-tooltip top v-if="printer.socket.isConnected">
+                        <template #activator="{ on, attrs }">
+                            <v-btn color="primary" @click="reprint" v-bind="attrs" v-on="on">
+                                <v-icon>{{ mdiPrinter }}</v-icon>
+                            </v-btn>
+                        </template>
+                        <span>{{ $t('Panels.StatusPanel.ReprintJob') }}</span>
+                    </v-tooltip>
+                    <div v-if="isReprintable()">{{ printer_name }}</div>
+                </v-row>
+            </v-col>
+        </v-container>
     </panel>
 </template>
 
@@ -118,7 +136,7 @@ import BaseMixin from '@/components/mixins/base'
 import { FarmPrinterState } from '@/store/farm/printer/types'
 import MainsailLogo from '@/components/ui/MainsailLogo.vue'
 import Panel from '@/components/ui/Panel.vue'
-import { mdiPrinter3d, mdiWebcam, mdiMenuDown, mdiWebcamOff, mdiFileOutline } from '@mdi/js'
+import { mdiPrinter3d, mdiPrinter, mdiWebcam, mdiMenuDown, mdiWebcamOff, mdiFileOutline } from '@mdi/js'
 import { Debounce } from 'vue-debounce-decorator'
 import WebcamMixin from '@/components/mixins/webcam'
 import WebcamWrapper from '@/components/webcams/WebcamWrapper.vue'
@@ -131,6 +149,7 @@ import WebcamWrapper from '@/components/webcams/WebcamWrapper.vue'
     },
 })
 export default class FarmPrinterPanel extends Mixins(BaseMixin, WebcamMixin) {
+    mdiPrinter = mdiPrinter
     mdiPrinter3d = mdiPrinter3d
     mdiWebcam = mdiWebcam
     mdiMenuDown = mdiMenuDown
@@ -218,6 +237,16 @@ export default class FarmPrinterPanel extends Mixins(BaseMixin, WebcamMixin) {
         else this.$store.dispatch('farm/' + this.printer._namespace + '/reconnect')
     }
 
+    reprint() {
+        console.log('Reprint clicked: ' + this.printer_current_filename)
+        if (this.isReprintable())
+            this.$socket.emit('printer.print.start', { filename: this.printer_current_filename }, {})
+    }
+
+    isReprintable() {
+        return this.printer_current_filename && ['error', 'complete', 'cancelled'].includes('error')
+    }
+
     mounted() {
         this.calcImageHeight()
     }
@@ -263,10 +292,6 @@ export default class FarmPrinterPanel extends Mixins(BaseMixin, WebcamMixin) {
 
 .webcamContainer .webcamFpsOutput {
     display: none;
-}
-
-.v-overlay {
-    top: 48px;
 }
 </style>
 
